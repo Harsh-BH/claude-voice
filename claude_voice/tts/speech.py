@@ -20,7 +20,7 @@ import numpy as np
 
 from claude_voice.audio.pulse import Clip, Player
 from claude_voice.config import DATA_DIR, TtsConfig
-from claude_voice.tts.text import SpeechText, is_hindi
+from claude_voice.tts.text import SpeechText, is_hindi, script_runs
 
 log = logging.getLogger(__name__)
 _LANG = {"a": "en-us", "b": "en-gb", "h": "hi", "e": "es", "f": "fr-fr", "i": "it", "j": "ja", "p": "pt-br", "z": "cmn"}
@@ -44,11 +44,19 @@ class KokoroTTS:
             if v not in voices:
                 raise ValueError(f"unknown Kokoro voice {v!r}; available: {', '.join(sorted(voices))}")
         self.cfg = cfg
+        self.hinglish = False  # Hinglish mode: every sentence in the Hindi voice, so it never switches mid-reply
         self.synth("Hi.")  # the first inference is slow (graph warm-up); keep it out of the first reply
 
     def synth(self, text: str) -> np.ndarray:
-        voice = self.cfg.hindi_voice if is_hindi(text) else self.cfg.voice
-        samples, _ = self.kokoro.create(text, voice=voice, speed=self.cfg.speed, lang=_LANG.get(voice[0], "en-us"))
+        if self.hinglish or is_hindi(text):
+            # One voice for the whole sentence, but Hindi words get Hindi phonemes and English
+            # words English ones, so "मैंने code push कर दिया" sounds like a person saying it.
+            phonemes = " ".join(self.kokoro.tokenizer.phonemize(run, lang="hi" if hindi else "en-us")
+                                for hindi, run in script_runs(text))
+            samples, _ = self.kokoro.create(phonemes, voice=self.cfg.hindi_voice, speed=self.cfg.speed, is_phonemes=True)
+        else:
+            voice = self.cfg.voice
+            samples, _ = self.kokoro.create(text, voice=voice, speed=self.cfg.speed, lang=_LANG.get(voice[0], "en-us"))
         return (np.clip(samples, -1.0, 1.0) * 32767).astype(np.int16)
 
 

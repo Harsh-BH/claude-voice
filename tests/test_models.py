@@ -27,6 +27,16 @@ def test_tts_english_and_hindi(tts):
     assert len(tts.synth(HI)) / tts.rate > 1.5
 
 
+def test_tts_hinglish_mode(tts):
+    mixed = "हाँ, मैंने code GitHub पे push कर दिया है।"
+    try:
+        tts.hinglish = True
+        assert 1.5 < len(tts.synth(mixed)) / tts.rate < 8.0
+        assert 0.2 < len(tts.synth("Done.")) / tts.rate < 2.0  # English-only sentences stay in the same voice
+    finally:
+        tts.hinglish = False
+
+
 def test_vad_separates_speech_from_silence_noise_and_clicks(tts):
     vad = SileroVAD()
     speech = probs(vad, resample(tts.synth(EN), tts.rate, 16000))
