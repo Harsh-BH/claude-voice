@@ -1,4 +1,4 @@
-from claude_voice.tts.text import SpeechText, clean_inline, split_sentences
+from claude_voice.tts.text import SpeechText, clean_inline, script_runs, split_sentences
 
 REPLY = """I'll add the cache now.
 
@@ -82,3 +82,10 @@ def test_no_cut_inside_inline_code_or_links():
 def test_hindi_danda():
     st = SpeechText(first_chunk_chars=0)
     assert st.feed("ठीक है। मैं टेस्ट चलाता हूँ।\n") == ["ठीक है।", "मैं टेस्ट चलाता हूँ।"]
+
+
+def test_hinglish_script_runs():
+    assert script_runs("हाँ भाई, मैंने code GitHub पे push कर दिया है।") == [
+        (True, "हाँ भाई, मैंने"), (False, "code GitHub"), (True, "पे"), (False, "push"), (True, "कर दिया है.")]
+    assert script_runs("Done.") == [(False, "Done.")]
+    assert script_runs("PR #42 merge हो गया?") == [(False, "PR #42 merge"), (True, "हो गया"), (False, "?")]

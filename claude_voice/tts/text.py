@@ -50,6 +50,18 @@ def is_hindi(text: str) -> bool:
     return bool(_DEVANAGARI.search(text))
 
 
+_RUN = re.compile(r"[ऀ-ॿ][ऀ-ॿ\s,]*|[^ऀ-ॿ]+")
+
+
+def script_runs(text: str) -> list[tuple[bool, str]]:
+    """Split Hinglish into (is_hindi, run) pieces so each run gets its own pronunciation rules.
+
+    Words in Devanagari are Hindi; everything else (English words, numbers, punctuation) is
+    English. The danda becomes a full stop, which both phonemizers understand.
+    """
+    return [(is_hindi(r), r.replace("।", ".").strip()) for r in _RUN.findall(text) if r.strip()]
+
+
 def _is_abbrev(text: str, period: int) -> bool:
     k = period
     while k > 0 and not text[k - 1].isspace():
