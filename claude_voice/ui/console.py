@@ -6,7 +6,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import signal
+import stat
 import sys
 import time
 
@@ -38,10 +40,14 @@ async def run(cfg: Config, cwd: str, resume: str | None, new: bool) -> None:
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, stop.set)
     await engine.start()
-    reader = asyncio.StreamReader()
+    reader = None
     try:
-        await loop.connect_read_pipe(lambda: asyncio.StreamReaderProtocol(reader), sys.stdin)
-    except (OSError, ValueError):  # stdin is a regular file or closed: no typed input
+        mode = os.fstat(0).st_mode
+        # epoll only takes ttys, pipes and sockets; /dev/null or a file would fail later, in a callback
+        if os.isatty(0) or stat.S_ISFIFO(mode) or stat.S_ISSOCK(mode):
+            reader = asyncio.StreamReader()
+            await loop.connect_read_pipe(lambda: asyncio.StreamReaderProtocol(reader), sys.stdin)
+    except (OSError, ValueError):  # stdin closed: no typed input
         reader = None
 
     async def read_lines():
