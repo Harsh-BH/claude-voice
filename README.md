@@ -56,6 +56,7 @@ that way. Details in [ARCHITECTURE.md](ARCHITECTURE.md#claude-code-integration).
 | "stop speaking" / "be quiet" / "बस" | stop speaking; Claude keeps working silently |
 | "repeat that" | say the last reply again |
 | "voice off" / "voice on" | pause listening (only "voice on" is recognized while paused) |
+| "Hinglish mode" / "English mode" | switch reply language (remembered across runs). Hinglish mode speaks Hindi words with Hindi pronunciation and English words with English pronunciation, in one voice |
 | "yes" / "no" / "हाँ" / "नहीं" | answer a permission prompt. A longer reply ("no, write it to staging instead") declines and hands your words to Claude; an unclear one gets "yes or no?" again |
 
 Commands only count as the whole utterance: "stop using Redis and switch to Postgres" is an
