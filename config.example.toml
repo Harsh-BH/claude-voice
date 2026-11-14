@@ -1,0 +1,68 @@
+# claude-voice configuration. Copied to ~/.config/claude-voice/config.toml by scripts/install.sh.
+# Every value below is the built-in default; delete what you don't change. Unknown keys and
+# wrong types are rejected at startup. Override the file location with CLAUDE_VOICE_CONFIG.
+
+[audio]
+input_device = ""        # microphone (PipeWire/pulse source name, see `pactl list short sources`); "" = default
+output_device = ""       # speaker (sink name, see `pactl list short sinks`); "" = default
+input_rate = 16000       # capture rate in Hz; other rates are resampled to 16 kHz for VAD and STT
+
+[aec]
+enabled = true           # false only makes sense with headphones (`voice --no-aec`)
+mode = "monitor"         # monitor: cancel everything the speaker plays (Claude, music, videos)
+                         # sink: cancel only Claude's voice (dedicated "Claude Voice" sink)
+noise_suppression = true
+gain_control = false     # WebRTC AGC; off because it disturbs the canceller's delay estimation
+transient_suppression = true  # suppresses keyboard clicks
+high_pass_filter = true
+
+[vad]                    # Silero VAD, 32 ms frames
+threshold = 0.5          # speech probability that starts an utterance
+end_threshold = 0.35     # below this a frame counts as silence (hysteresis)
+min_speech_ms = 160      # voiced time before an utterance starts (filters clicks and coughs)
+min_silence_ms = 700     # silence that ends your turn; raise it if you get cut off mid-thought
+pre_roll_ms = 320        # audio kept from before the detected onset
+max_utterance_s = 30.0
+
+[barge_in]               # interrupting Claude while it talks
+enabled = true
+threshold = 0.5          # speech probability a frame needs while Claude is audible...
+level_margin_db = 6.0    # ...and this much louder than the room's ambient level (residual echo is quiet)
+min_speech_ms = 160      # qualifying speech, within a window twice as long, before playback pauses
+confirm_timeout_s = 2.0  # paused speech resumes if nothing intelligible is said in this time
+echo_similarity = 0.8    # share of a transcript's words found in what Claude was saying => echo
+tail_ms = 250            # playback still counts as audible this long after its last sample
+
+[stt]                    # faster-whisper
+model = "auto"           # auto = large-v3-turbo on CUDA, small on CPU; or tiny/base/small/medium/turbo,
+                         # a Hugging Face repo id, or a local CTranslate2 model directory
+device = "auto"          # auto | cuda | cpu
+compute_type = "auto"    # auto = int8_float16 on CUDA, int8 on CPU
+languages = ["en", "hi"] # detected per utterance among these; spoken Hindi labelled Urdu counts as Hindi
+beam_size = 5
+partials = true          # live transcript while you speak (also detects the language early)
+partial_interval_ms = 700
+hotwords = ["Claude", "Claude Code", "Kubernetes", "PostgreSQL", "WebSockets", "OAuth", "Redis", "CUDA",
+            "TypeScript", "JavaScript", "Python", "React", "Next.js", "Node.js", "Docker", "GitHub",
+            "npm", "pytest", "JSON", "YAML", "API", "PipeWire", "Arch Linux"]  # English utterances only
+
+[tts]
+engine = "kokoro"        # kokoro | piper (Piper is also the automatic fallback if Kokoro fails to load)
+voice = "af_heart"       # Kokoro voice: af_heart, af_bella, am_michael, bf_emma, bm_george, ...
+hindi_voice = "hf_alpha" # used for sentences written in Devanagari (hf_alpha, hf_beta, hm_omega, hm_psi)
+speed = 1.0              # 0.5 - 2.0
+volume = 1.0             # 0.0 - 2.0, applied before the system volume
+threads = 6              # CPU threads for Kokoro
+kokoro_model = ""        # "" = ~/.local/share/claude-voice/models/kokoro/kokoro-v1.0.onnx
+piper_voice = ""         # "" = ~/.local/share/claude-voice/models/piper/en_US-lessac-medium.onnx
+
+[claude]
+model = ""               # "" = your Claude Code default (e.g. "opus", "sonnet", "haiku", or a full model id)
+effort = ""              # "" = default; low | medium | high | xhigh | max (lower = faster first words)
+permission_mode = ""     # "" = from your Claude Code settings; default | acceptEdits | plan | dontAsk |
+                         # bypassPermissions | auto
+session = "continue"     # continue: resume this project's latest conversation; new: start fresh
+kill_tools_on_interrupt = true  # interrupting also stops a foreground Bash command Claude is running
+cli_path = ""            # "" = `claude` on PATH, else the CLI bundled with the Agent SDK
+# voice_prompt = "..."   # text appended to Claude Code's system prompt for spoken replies;
+                         # see claude_voice/config.py for the default; "" disables it
