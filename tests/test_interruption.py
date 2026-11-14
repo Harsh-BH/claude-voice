@@ -22,6 +22,10 @@ def test_commands():
     assert parse_command("nahi", expecting_answer=True) is Command.NO
     assert parse_command("yet.", expecting_answer=True) is Command.YES   # Whisper on a lone "yes" over the prompt
     assert parse_command("yet", expecting_answer=False) is None
+    assert parse_command("Hinglish mode.") is Command.HINGLISH
+    assert parse_command("हिंग्लिश मोड") is Command.HINGLISH
+    assert parse_command("English mode, please") is Command.ENGLISH
+    assert parse_command("explain the English mode code") is None
 
 
 def test_echo_and_noise():

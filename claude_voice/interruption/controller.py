@@ -23,6 +23,8 @@ class Command(Enum):
     REPEAT = "repeat that"
     VOICE_OFF = "voice off"
     VOICE_ON = "voice on"
+    HINGLISH = "hinglish mode"
+    ENGLISH = "english mode"
     YES = "yes"
     NO = "no"
 
@@ -44,6 +46,11 @@ _PHRASES: dict[Command, set[str]] = {
     },
     Command.VOICE_OFF: {"voice off", "stop listening", "go to sleep"},
     Command.VOICE_ON: {"voice on", "start listening", "wake up", "resume listening"},
+    Command.HINGLISH: {
+        "hinglish mode", "hindi mode", "hinglish", "switch to hinglish", "hinglish mode on",
+        "हिंग्लिश मोड", "हिंगलिश मोड", "हिंदी मोड", "हिंग्लिश",
+    },
+    Command.ENGLISH: {"english mode", "switch to english", "english mode on", "इंग्लिश मोड", "english only"},
     # answers are only parsed while a permission prompt is pending; the last line of each set is
     # how Whisper actually wrote a lone "yes"/"no" said over the prompt
     Command.YES: {
