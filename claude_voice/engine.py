@@ -16,7 +16,7 @@ import os
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 import numpy as np
@@ -25,7 +25,7 @@ from claude_voice.aec.pipewire import SOURCE as AEC_SOURCE
 from claude_voice.aec.pipewire import EchoCanceller
 from claude_voice.audio.pulse import Capture, Player
 from claude_voice.claude.session import ClaudeSession
-from claude_voice.config import RUNTIME_DIR, STATE_DIR, Config
+from claude_voice.config import HINGLISH_PROMPT, RUNTIME_DIR, STATE_DIR, Config
 from claude_voice.interruption.controller import Command, InterruptionController, Verdict, is_noise, parse_command, words
 from claude_voice.state.machine import State, StateMachine
 from claude_voice.stt.whisper import Transcriber, Transcript
@@ -73,7 +73,13 @@ class Engine:
         self.aec = EchoCanceller(cfg.aec, mic, speaker) if cfg.aec.enabled else None
         self.input_device = AEC_SOURCE if self.aec else (mic or None)
         self.output_device = self.aec.playback_sink if self.aec else (speaker or None)
-        self.session = ClaudeSession(cfg.claude, cwd, self._on_claude, self._ask_permission, resume=resume, new=new)
+        self.language_file = STATE_DIR / "language"  # "hinglish" or "english", remembered across runs
+        try:
+            self.hinglish = self.language_file.read_text().strip() == "hinglish"
+        except OSError:
+            self.hinglish = False
+        self._language_note = ""  # tells Claude about a mode switch with the next message
+        self.session = ClaudeSession(self._claude_cfg(), cwd, self._on_claude, self._ask_permission, resume=resume, new=new)
         self.loop: asyncio.AbstractEventLoop | None = None
         self.stt: Transcriber | None = None
         self.vad: SileroVAD | None = None
@@ -110,6 +116,7 @@ class Engine:
         self.player = Player(self.output_device, self._player_event, rate=tts.rate, tail_ms=self.cfg.barge_in.tail_ms)
         self.player.volume = self.cfg.tts.volume
         self.player.start()
+        tts.hinglish = self.hinglish
         self.speech = Speech(tts, self.player, self._speech_event)
         self.ui("info", {"text": "connecting to Claude Code"})
         await self.session.start()
@@ -482,12 +489,33 @@ class Engine:
             return
         elif cmd is Command.VOICE_ON:
             pass
+        elif cmd in (Command.HINGLISH, Command.ENGLISH):
+            self._set_language(cmd is Command.HINGLISH)
         elif cmd in (Command.YES, Command.NO) and self.permission and not self.permission.future.done():
             self.permission.future.set_result(cmd is Command.YES)
         self._back_from_interrupting()
 
+    def _claude_cfg(self):
+        if not self.hinglish:
+            return self.cfg.claude
+        return replace(self.cfg.claude, voice_prompt=f"{self.cfg.claude.voice_prompt}\n\n{HINGLISH_PROMPT}")
+
+    def _set_language(self, hinglish: bool) -> None:
+        self.hinglish = self.speech.tts.hinglish = hinglish
+        self.session.cfg = self._claude_cfg()  # a restarted CLI gets the right prompt
+        self._language_note = (f"[Voice note: {HINGLISH_PROMPT}]" if hinglish
+                               else "[Voice note: Hinglish mode is off. Reply in English from now on.]")
+        try:
+            self.language_file.write_text("hinglish" if hinglish else "english")
+        except OSError as e:
+            log.warning("could not remember the language mode: %s", e)
+        self.ui("info", {"text": f"{'Hinglish' if hinglish else 'English'} mode"})
+        self.speech.say(["Hinglish mode on." if hinglish else "English mode on."])
+
     # ------------------------------------------------------------------ Claude
     async def _submit(self, text: str, note: str = "") -> None:
+        if self._language_note:
+            note, self._language_note = "\n".join(filter(None, [self._language_note, note])), ""
         if self.sm.state not in _QUIET:
             self.sm.to(S.CLAUDE_THINKING, "submitted")
         self.speech.begin_turn()

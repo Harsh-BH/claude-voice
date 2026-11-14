@@ -37,6 +37,13 @@ change with your tools, then say briefly what you did and where, by file name.
 the old plan and follow the new instruction.
 - Reply in the language the user speaks."""
 
+HINGLISH_PROMPT = """\
+Hinglish mode is on: reply in natural Hinglish, mixing Hindi and English the way the user does. \
+Write Hindi words in Devanagari and English words (technical terms, names, anything people \
+usually say in English) in Latin script, for example: "हाँ, मैंने code GitHub पे push कर दिया है।" \
+The speech engine pronounces each script with its own rules, so never write Hindi words in Latin \
+letters."""
+
 DEFAULT_HOTWORDS = [
     "Claude", "Claude Code", "Kubernetes", "PostgreSQL", "WebSockets", "OAuth", "Redis", "CUDA",
     "TypeScript", "JavaScript", "Python", "React", "Next.js", "Node.js", "Docker", "GitHub",
